@@ -1,0 +1,10 @@
+{
+  "name": "Manajemen Informasi Utama Rekam Akademik",
+  "description": "MiURA adalah platform manajemen akademik yang dirancang untuk membantu guru mengelola berbagai kebutuhan pembelajaran dan administrasi akademik secara terintegrasi dalam satu sistem.\n\nMelalui MiURA, guru dapat mengelola data siswa, kelas, absensi, materi pembelajaran, tugas, penilaian, hingga rekam akademik secara lebih terstruktur, mudah, dan efisien. MiURA hadir untuk mengurangi pekerjaan administratif yang berulang sekaligus membantu guru memperoleh informasi akademik yang dibutuhkan dengan lebih cepat.\n\nDengan mengintegrasikan berbagai aktivitas akademik ke dalam satu platform, MiURA membantu guru berfokus pada proses pembelajaran, sementara pengelolaan data dan administrasi menjadi lebih sederhana dan terorganisir.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
