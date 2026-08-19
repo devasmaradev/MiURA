@@ -4,7 +4,8 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
-dotenv.config();
+// Load .env.local first (local dev per README), then fall back to .env.
+dotenv.config({ path: [".env.local", ".env"] });
 
 async function startServer() {
   const app = express();
@@ -13,6 +14,9 @@ async function startServer() {
   app.use(express.json({ limit: "10mb" }));
 
   // Simple in-memory rate limiter for AI endpoints (quota/billing protection)
+  // ponytail: endpoints are NOT authenticated (Firebase token verification would
+  // need firebase-admin + service account). Rate limit mitigates abuse; upgrade
+  // when multi-tenant or public deployment is in scope.
   const aiRateHits = new Map<string, number[]>();
   const AI_RATE_LIMIT = 20;
   const AI_RATE_WINDOW_MS = 60_000;
@@ -276,7 +280,7 @@ FORMAT WAJIB LAYOUT HTML:
       res.json({ status: "success", html: text });
     } catch (error: any) {
       console.error("Error generating modul:", error);
-      res.status(500).json({ status: "error", message: error.message || "Gagal membuat modul AI" });
+      res.status(500).json({ status: "error", message: "Gagal membuat modul AI. Silakan coba beberapa saat lagi." });
     }
   });
 
@@ -314,7 +318,7 @@ Informasi Sekolah/Guru Pendukung: ${JSON.stringify(context || {})}`;
       res.json({ status: "success", reply: cleanReply });
     } catch (error: any) {
       console.error("Error in chat assistant:", error);
-      res.status(500).json({ status: "error", message: error.message || "Gagal memproses pertanyaan asisten AI" });
+      res.status(500).json({ status: "error", message: "Gagal memproses pertanyaan asisten AI. Silakan coba beberapa saat lagi." });
     }
   });
 
@@ -818,7 +822,7 @@ KETENTUAN LAYOUT HTML:
       console.error("Gagal generate Perangkat Ajar AI:", err);
       res.status(500).json({
         status: "error",
-        message: err?.message || "Terjadi kesalahan saat memproses Perangkat Ajar AI."
+        message: "Gagal memproses Perangkat Ajar AI. Silakan coba beberapa saat lagi."
       });
     }
   });

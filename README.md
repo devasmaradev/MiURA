@@ -41,6 +41,7 @@ npm start       # node dist/server.cjs — menyajikan dist/ + API
   3. Deploy `firestore.rules` (hanya `request.auth != null` yang diizinkan baca/tulis).
 - Tanpa akun yang valid, aplikasi menampilkan halaman login dan **tidak** dapat mengakses data.
 - **Batasan saat ini:** semua user yang terautentikasi memiliki akses penuh ke seluruh koleksi (satu-peran). Untuk multi-peran (mis. admin vs guru), bagi rules di `firestore.rules` berdasar klaim/custom claims (`ponytail`).
+- **Menu "Hapus Isi Database" dilindungi Kode Reset (PIN):** PIN diatur di menu Pengaturan (`Reset_Kode`). Selama PIN belum diatur, penghapusan database terkunci.
 - Seluruh output HTML dari Gemini disanitasi dengan DOMPurify sebelum dirender/dicetak.
 - Endpoint AI memiliki rate limiter in-memory (20 permintaan/menit/IP).
 
