@@ -4,5 +4,6 @@
   "projectId": "",
   "storageBucket": "",
   "messagingSenderId": "",
-  "appId": ""
+  "appId": "",
+  "firestoreDatabaseId": ""
 }

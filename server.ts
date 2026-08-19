@@ -4,38 +4,13 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
-// Load .env.local first (local dev per README), then fall back to .env.
-dotenv.config({ path: [".env.local", ".env"] });
+dotenv.config();
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json({ limit: "10mb" }));
-
-  // Simple in-memory rate limiter for AI endpoints (quota/billing protection)
-  // ponytail: endpoints are NOT authenticated (Firebase token verification would
-  // need firebase-admin + service account). Rate limit mitigates abuse; upgrade
-  // when multi-tenant or public deployment is in scope.
-  const aiRateHits = new Map<string, number[]>();
-  const AI_RATE_LIMIT = 20;
-  const AI_RATE_WINDOW_MS = 60_000;
-  function allowAiRequest(key: string): boolean {
-    const now = Date.now();
-    const recent = (aiRateHits.get(key) || []).filter((t) => now - t < AI_RATE_WINDOW_MS);
-    if (recent.length >= AI_RATE_LIMIT) return false;
-    recent.push(now);
-    aiRateHits.set(key, recent);
-    return true;
-  }
-  app.use("/api/ai", (req, res, next) => {
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    if (!allowAiRequest(ip)) {
-      res.status(429).json({ status: "error", message: "Terlalu banyak permintaan AI. Silakan tunggu beberapa saat lalu coba lagi." });
-      return;
-    }
-    next();
-  });
 
   // Initialize Gemini AI Client lazily or safely
   const getAiClient = () => {
@@ -111,13 +86,7 @@ async function startServer() {
   // API 1: Generate AI Modul Ajar
   app.post("/api/ai/generate-modul", async (req, res) => {
     try {
-      const formData = req.body || {};
-      if (typeof formData !== "object" || Array.isArray(formData)) {
-        return res.status(400).json({ status: "error", message: "Data formulir tidak valid." });
-      }
-      // Clamp meeting count to 1-5; reject absurd payloads before hitting Gemini
-      const jumlahPertemuan = Math.max(1, Math.min(5, parseInt(String(formData.jumlahPertemuan), 10) || 1));
-      formData.jumlahPertemuan = String(jumlahPertemuan);
+      const formData = req.body;
       const ai = getAiClient();
 
       const metodeText = formData.metode && formData.metode.trim() 
@@ -280,17 +249,14 @@ FORMAT WAJIB LAYOUT HTML:
       res.json({ status: "success", html: text });
     } catch (error: any) {
       console.error("Error generating modul:", error);
-      res.status(500).json({ status: "error", message: "Gagal membuat modul AI. Silakan coba beberapa saat lagi." });
+      res.status(500).json({ status: "error", message: error.message || "Gagal membuat modul AI" });
     }
   });
 
   // API 2: AI Asisten Chatbot Guru
   app.post("/api/ai/chat-asisten", async (req, res) => {
     try {
-      const { message, context } = req.body || {};
-      if (typeof message !== "string" || !message.trim() || message.trim().length > 4000) {
-        return res.status(400).json({ status: "error", message: "Pertanyaan tidak valid (maksimal 4000 karakter)." });
-      }
+      const { message, context } = req.body;
       const ai = getAiClient();
 
       const systemPrompt = `Anda adalah "EdAdmin AI Assistant", asisten kecerdasan buatan khusus administrasi guru dan pendidik profesional di Indonesia.
@@ -318,7 +284,7 @@ Informasi Sekolah/Guru Pendukung: ${JSON.stringify(context || {})}`;
       res.json({ status: "success", reply: cleanReply });
     } catch (error: any) {
       console.error("Error in chat assistant:", error);
-      res.status(500).json({ status: "error", message: "Gagal memproses pertanyaan asisten AI. Silakan coba beberapa saat lagi." });
+      res.status(500).json({ status: "error", message: error.message || "Gagal memproses pertanyaan asisten AI" });
     }
   });
 
@@ -386,8 +352,7 @@ Informasi Sekolah/Guru Pendukung: ${JSON.stringify(context || {})}`;
   // API 3: PPT Generator AI Bulk All Slides Content
   app.post("/api/ai/generate-ppt-all-slides", async (req, res) => {
     const { topic = "Topik Pembelajaran", subject = "Mata Pelajaran", level = "Sekolah", slideCount = 8, subTopics = [] } = req.body || {};
-    const rawCount = Number(slideCount);
-    const count = Number.isFinite(rawCount) ? Math.max(2, Math.min(14, rawCount - 1)) : 7;
+    const count = Math.max(2, Math.min(14, Number(slideCount) - 1));
 
     const defaultSubTopics = [
       "Pengertian Dasar dan Definisi Kontekstual",
@@ -399,10 +364,7 @@ Informasi Sekolah/Guru Pendukung: ${JSON.stringify(context || {})}`;
       "Studi Kasus dan Penerapan dalam Kehidupan Sehari-hari"
     ];
 
-    const safeSubTopics = Array.isArray(subTopics)
-      ? subTopics.filter((s): s is string => typeof s === "string").slice(0, 20).map((s) => s.slice(0, 200))
-      : [];
-    const actualSubTopics = safeSubTopics.length > 0 ? safeSubTopics : defaultSubTopics;
+    const actualSubTopics = Array.isArray(subTopics) && subTopics.length > 0 ? subTopics : defaultSubTopics;
     
     // Prepare structured subtopics prompt
     const promptSubtopicsList = Array.from({ length: count }, (_, i) => {
@@ -591,10 +553,6 @@ Format Objek JSON Per Slide:
   app.post("/api/ai/generate-perangkat-ajar", async (req, res) => {
     try {
       const { docType, formData } = req.body || {};
-      const allowedDocTypes = ["analisis_cp", "tp", "atp", "prota", "prosem", "kktp"];
-      if (typeof docType !== "string" || !allowedDocTypes.includes(docType)) {
-        return res.status(400).json({ status: "error", message: "Jenis dokumen tidak dikenali." });
-      }
       const ai = getAiClient();
 
       const schoolName = formData?.school || "SMA Negeri 1 Jambi";
@@ -822,7 +780,7 @@ KETENTUAN LAYOUT HTML:
       console.error("Gagal generate Perangkat Ajar AI:", err);
       res.status(500).json({
         status: "error",
-        message: "Gagal memproses Perangkat Ajar AI. Silakan coba beberapa saat lagi."
+        message: err?.message || "Terjadi kesalahan saat memproses Perangkat Ajar AI."
       });
     }
   });
@@ -837,11 +795,7 @@ KETENTUAN LAYOUT HTML:
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      if (req.path.startsWith("/api")) {
-        res.status(404).json({ status: "error", message: "Endpoint tidak ditemukan." });
-        return;
-      }
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
